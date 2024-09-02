@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebGL Graphics App</title>
+    <style>
+        body, html {
+            margin: 0;
+            height: 100%;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="webgl-canvas"></canvas>
+
+    <script>
+        // Get the canvas element
+        const canvas = document.getElementById('webgl-canvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Initialize WebGL context
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+
+        if (!gl) {
+            alert("WebGL isn't supported by your browser.");
+            throw new Error("WebGL not supported");
+        }
+
+        // Clear the canvas with a black color
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        // WebGL setup and rendering code will go here
+
+    </script>
+</body>
+</html>
