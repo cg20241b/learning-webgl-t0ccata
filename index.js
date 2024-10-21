@@ -1,3 +1,15 @@
+let isPaused = false;
+
+function toggleAnimation() {
+    isPaused = !isPaused;
+}
+document.addEventListener('keydown', function (event) {
+    if (event.code === 'Space') {
+        toggleAnimation();
+    }
+});
+
+// Initialize WebGL context
 const canvas = document.getElementById('glCanvas');
 const gl = canvas.getContext('webgl');
 
@@ -40,14 +52,19 @@ async function main() {
         attribLocations: {
             vertexPosition: gl.getAttribLocation(shaderProgram, 'aVertexPosition'),
             textureCoord: gl.getAttribLocation(shaderProgram, 'aTextureCoord'),
+            vertexColor: gl.getAttribLocation(shaderProgram, 'aVertexColor'),
+            vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
         },
         uniformLocations: {
             uTranslationMatrix: gl.getUniformLocation(shaderProgram, 'uTranslationMatrix'),
             uZRotationMatrix: gl.getUniformLocation(shaderProgram, 'uZRotationMatrix'),
             uYRotationMatrix: gl.getUniformLocation(shaderProgram, 'uYRotationMatrix'),
-            //projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
-            //modelViewMatrix: gl.getUniformLocation(shaderProgram, 'uModelViewMatrix'),
+            projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
+            viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
             uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
+            ambientLight: gl.getUniformLocation(shaderProgram, 'uAmbientLight'),
+            directionalLightColor: gl.getUniformLocation(shaderProgram, 'uDirectionalLightColor'),
+            directionalLightDirection: gl.getUniformLocation(shaderProgram, 'uDirectionalLightDirection'),
         },
     };
 
@@ -64,9 +81,11 @@ async function main() {
 
     // Start the animation loop
     function animate() {
-        updatePosition();
-        updateRotation();
-        drawScene(gl, programInfo, buffers);
+        if (!isPaused) {
+            updatePosition();
+            updateRotation();
+            drawScene(gl, programInfo, buffers);
+        }
         requestAnimationFrame(animate);
     }
     animate();
@@ -77,6 +96,8 @@ async function main() {
         const positionBuffer = gl.createBuffer();
         const indexBuffer = gl.createBuffer();
         const textureCoordBuffer = gl.createBuffer();
+        const colorBuffer = gl.createBuffer();
+        const normalBuffer = gl.createBuffer();
 
         // Now create an array of positions for the square.
         const positions = [
@@ -170,10 +191,72 @@ async function main() {
         gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
 
+        const faceColors = [
+            [1.0, 1.0, 1.0, 1.0],    // Front face: white
+            [1.0, 0.0, 0.0, 1.0],    // Back face: red
+            [0.0, 1.0, 0.0, 1.0],    // Top face: green
+            [0.0, 0.0, 1.0, 1.0],    // Bottom face: blue
+            [1.0, 1.0, 0.0, 1.0],    // Right face: yellow
+            [1.0, 0.5, 0.0, 1.0],    // Left face: orange
+        ];
+
+        let colors = [];
+        for (let j = 0; j < faceColors.length; ++j) {
+            const c = faceColors[j];
+            colors = colors.concat(c, c, c, c);
+        }
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+
+        // Define the normals for each face
+        const vertexNormals = [
+            // Front face
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+            0.0, 0.0, 1.0,
+
+            // Back face
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+
+            // Top face
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+            0.0, 1.0, 0.0,
+
+            // Bottom face
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+            0.0, -1.0, 0.0,
+
+            // Right face
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+
+            // Left face
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+            -1.0, 0.0, 0.0,
+        ];
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
+
+
         return {
             position: positionBuffer,
             indices: indexBuffer,
             textureCoord: textureCoordBuffer,
+            color: colorBuffer,
+            normal: normalBuffer,
         };
     }
 
@@ -251,6 +334,44 @@ async function main() {
                 programInfo.attribLocations.textureCoord);
         }
 
+        // Tell WebGL how to pull out the colors from the color buffer into the vertexColor attribute.
+        {
+            const numComponents = 4;
+            const type = gl.FLOAT;
+            const normalize = false;
+            const stride = 0;
+            const offset = 0;
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.color);
+            gl.vertexAttribPointer(
+                programInfo.attribLocations.vertexColor,
+                numComponents,
+                type,
+                normalize,
+                stride,
+                offset);
+            gl.enableVertexAttribArray(
+                programInfo.attribLocations.vertexColor);
+        }
+
+        // Tell WebGL how to pull out the normals from the normal buffer into the vertexNormal attribute.
+        {
+            const numComponents = 3;
+            const type = gl.FLOAT;
+            const normalize = false;
+            const stride = 0;
+            const offset = 0;
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffers.normal);
+            gl.vertexAttribPointer(
+                programInfo.attribLocations.vertexNormal,
+                numComponents,
+                type,
+                normalize,
+                stride,
+                offset);
+            gl.enableVertexAttribArray(
+                programInfo.attribLocations.vertexNormal);
+        }
+
         // Tell WebGL we want to affect texture unit 0
         gl.activeTexture(gl.TEXTURE0);
 
@@ -287,6 +408,27 @@ async function main() {
         gl.uniformMatrix4fv(programInfo.uniformLocations.uTranslationMatrix, false, translationMatrix);
         gl.uniformMatrix4fv(programInfo.uniformLocations.uZRotationMatrix, false, zRotationMatrix);
         gl.uniformMatrix4fv(programInfo.uniformLocations.uYRotationMatrix, false, yRotationMatrix);
+
+        const fieldOfView = 45 * Math.PI / 180;   // in radians
+        const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+        const zNear = 0.1;
+        const zFar = 100.0;
+        const projectionMatrix = mat4.create();
+        mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar);
+        gl.uniformMatrix4fv(programInfo.uniformLocations.projectionMatrix, false, projectionMatrix);
+
+        const viewMatrix = mat4.create();
+        mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -3.0]);
+        gl.uniformMatrix4fv(programInfo.uniformLocations.viewMatrix, false, viewMatrix);
+
+        const ambientLight = [0.2, 0.2, 0.2];
+        gl.uniform3fv(programInfo.uniformLocations.ambientLight, ambientLight);
+
+        // Define the directional light properties
+        const directionalLightColor = [1.0, 1.0, 1.0]; // White light
+        const directionalLightDirection = [-1.0, 0.0, 0.0]; // Light coming from the front
+        gl.uniform3fv(programInfo.uniformLocations.directionalLightColor, directionalLightColor);
+        gl.uniform3fv(programInfo.uniformLocations.directionalLightDirection, directionalLightDirection);
 
         // Draw the cube
         {
