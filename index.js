@@ -56,15 +56,16 @@ async function main() {
             vertexNormal: gl.getAttribLocation(shaderProgram, 'aVertexNormal'),
         },
         uniformLocations: {
-            uTranslationMatrix: gl.getUniformLocation(shaderProgram, 'uTranslationMatrix'),
-            uZRotationMatrix: gl.getUniformLocation(shaderProgram, 'uZRotationMatrix'),
-            uYRotationMatrix: gl.getUniformLocation(shaderProgram, 'uYRotationMatrix'),
+            translationMatrix: gl.getUniformLocation(shaderProgram, 'uTranslationMatrix'),
+            zRotationMatrix: gl.getUniformLocation(shaderProgram, 'uZRotationMatrix'),
+            yRotationMatrix: gl.getUniformLocation(shaderProgram, 'uYRotationMatrix'),
             projectionMatrix: gl.getUniformLocation(shaderProgram, 'uProjectionMatrix'),
             viewMatrix: gl.getUniformLocation(shaderProgram, 'uViewMatrix'),
-            uSampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
-            ambientLight: gl.getUniformLocation(shaderProgram, 'uAmbientLight'),
-            directionalLightColor: gl.getUniformLocation(shaderProgram, 'uDirectionalLightColor'),
-            directionalLightDirection: gl.getUniformLocation(shaderProgram, 'uDirectionalLightDirection'),
+            sampler: gl.getUniformLocation(shaderProgram, 'uSampler'),
+            ambientIntensity: gl.getUniformLocation(shaderProgram, 'uAmbientIntensity'),
+            lightColor: gl.getUniformLocation(shaderProgram, 'uLightColor'),
+            pointLightPosition: gl.getUniformLocation(shaderProgram, 'uPointLightPosition'),
+            //directionalLightDirection: gl.getUniformLocation(shaderProgram, 'uDirectionalLightDirection'),
         },
     };
 
@@ -379,7 +380,7 @@ async function main() {
         gl.bindTexture(gl.TEXTURE_2D, texture);
 
         // Tell the shader we bound the texture to texture unit 0
-        //gl.uniform1i(programInfo.uniformLocations.uSampler, 0);
+        //gl.uniform1i(programInfo.uniformLocations.sampler, 0);
 
         // Tell WebGL to use our program when drawing
         gl.useProgram(programInfo.program);
@@ -405,9 +406,9 @@ async function main() {
         ];
 
         // Set the translation matrix uniform
-        gl.uniformMatrix4fv(programInfo.uniformLocations.uTranslationMatrix, false, translationMatrix);
-        gl.uniformMatrix4fv(programInfo.uniformLocations.uZRotationMatrix, false, zRotationMatrix);
-        gl.uniformMatrix4fv(programInfo.uniformLocations.uYRotationMatrix, false, yRotationMatrix);
+        gl.uniformMatrix4fv(programInfo.uniformLocations.translationMatrix, false, translationMatrix);
+        gl.uniformMatrix4fv(programInfo.uniformLocations.zRotationMatrix, false, zRotationMatrix);
+        gl.uniformMatrix4fv(programInfo.uniformLocations.yRotationMatrix, false, yRotationMatrix);
 
         const fieldOfView = 45 * Math.PI / 180;   // in radians
         const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
@@ -421,14 +422,20 @@ async function main() {
         mat4.translate(viewMatrix, viewMatrix, [0.0, 0.0, -3.0]);
         gl.uniformMatrix4fv(programInfo.uniformLocations.viewMatrix, false, viewMatrix);
 
-        const ambientLight = [0.2, 0.2, 0.2];
-        gl.uniform3fv(programInfo.uniformLocations.ambientLight, ambientLight);
+        const ambientIntensity = [0.2, 0.2, 0.2];
+        gl.uniform3fv(programInfo.uniformLocations.ambientIntensity, ambientIntensity);
 
         // Define the directional light properties
-        const directionalLightColor = [1.0, 1.0, 1.0]; // White light
-        const directionalLightDirection = [-1.0, 0.0, 0.0]; // Light coming from the front
-        gl.uniform3fv(programInfo.uniformLocations.directionalLightColor, directionalLightColor);
-        gl.uniform3fv(programInfo.uniformLocations.directionalLightDirection, directionalLightDirection);
+        //const diffuseLightColor = [1.0, 1.0, 1.0]; // White light
+        //const directionalLightDirection = [-1.0, 0.0, 0.0]; // Light coming from the front
+        //gl.uniform3fv(programInfo.uniformLocations.diffuseLightColor, diffuseLightColor);
+        //gl.uniform3fv(programInfo.uniformLocations.directionalLightDirection, directionalLightDirection);
+
+        // Define the point light properties
+        const lightColor = [1.0, 1.0, 1.0]; // White light
+        const pointLightPosition = [200.0, 200.0, 200.0]; // Light coming from the front
+        gl.uniform3fv(programInfo.uniformLocations.lightColor, lightColor);
+        gl.uniform3fv(programInfo.uniformLocations.pointLightPosition, pointLightPosition);
 
         // Draw the cube
         {
